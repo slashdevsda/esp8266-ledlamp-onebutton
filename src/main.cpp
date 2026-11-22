@@ -13,10 +13,11 @@
 #define UPDATE_MS 16
 #define RGB_HOLD_MS 10000
 
+// Modes: 0=blanc chaud, 1=blanc, 2=RGB random
 #define NUM_MODES 3
 const CRGB MODE_COLORS[2] = {
-  CRGB(255, 110, 20),
-  CRGB(255, 230, 200)
+  CRGB(255, 110, 20),  // 0: blanc chaud (plus chaud)
+  CRGB(255, 230, 200)   // 1: blanc
 };
 
 const uint8_t BRIGHT_LEVELS[3] = {20, 80, 225};
@@ -24,14 +25,13 @@ int brightLevel = 1;
 
 CRGB leds[NUM_LEDS];
 bool lampOn = false;
-int currentMode = 0;
+int currentMode = 0;  // 0=blanc chaud, 1=blanc, 2=RGB
 CRGB startColor = CRGB::Black;
 CRGB targetColor = MODE_COLORS[0];
 uint32_t lastTransition = 0;
 
-float curBrightF = 40.0f;
-float tgtBrightF = 40.0f;
-float startBrightF = 40.0f;
+uint8_t curBright = 40;
+uint8_t tgtBright = 40;
 uint32_t lastBrightT = 0;
 bool brightTrans = false;
 
@@ -56,9 +56,9 @@ float smootherstep(float t) {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  Serial.println("LAMPE-LED v11 (float blend)");
+  Serial.println("LAMPE-LED v10 (3 modes)");
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
-  FastLED.setBrightness(255);
+  FastLED.setBrightness(40);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
   FastLED.show();
@@ -86,8 +86,8 @@ void getModeColor(int m, CRGB &c) {
 void changeIntensity() {
   if (!lampOn) return;
   brightLevel = (brightLevel + 1) % 3;
-  startBrightF = curBrightF;
-  tgtBrightF = (float)BRIGHT_LEVELS[brightLevel];
+  curBright = FastLED.getBrightness();
+  tgtBright = BRIGHT_LEVELS[brightLevel];
   lastBrightT = millis();
   brightTrans = true;
   feedbackActive = true;
@@ -116,12 +116,12 @@ void toggleLamp() {
     targetColor = c;
     startColor = c;
     lastTransition = millis() + TRANSITION_MS;
-    startBrightF = 0.0f;
-    curBrightF = 0.0f;
-    tgtBrightF = (float)BRIGHT_LEVELS[brightLevel];
+    curBright = 0;
+    tgtBright = BRIGHT_LEVELS[brightLevel];
     lastBrightT = millis();
     brightTrans = true;
     rgbHoldStart = 0;
+    FastLED.setBrightness(0);
     FastLED.show();
     Serial.println("Lampe ALLUMEE");
   } else {
@@ -163,16 +163,18 @@ void loop() {
   if (feedbackActive) {
     uint32_t el = millis() - feedbackStart;
     if (el < FEEDBACK_MS) {
-      float bScale = curBrightF / 255.0f;
+      uint8_t curB = FastLED.getBrightness();
+      FastLED.setBrightness(255);
       for (int i = 1; i < NUM_LEDS; i++) {
-        leds[i].r = (uint8_t)(leds[i].r * bScale + 0.5f);
-        leds[i].g = (uint8_t)(leds[i].g * bScale + 0.5f);
-        leds[i].b = (uint8_t)(leds[i].b * bScale + 0.5f);
+        leds[i].r = leds[i].r * curB / 255;
+        leds[i].g = leds[i].g * curB / 255;
+        leds[i].b = leds[i].b * curB / 255;
       }
       leds[0] = feedbackColor;
       FastLED.show();
     } else {
       feedbackActive = false;
+      FastLED.setBrightness(tgtBright);
       if (feedbackColor == CRGB(0, 0, 255)) {
         currentMode = feedbackMode;
         rgbHoldStart = 0;
@@ -192,10 +194,11 @@ void loop() {
     if (el < BRIGHT_TRANS_MS) {
       float t = (float)el / BRIGHT_TRANS_MS;
       float e = smootherstep(t);
-      curBrightF = startBrightF + (tgtBrightF - startBrightF) * e;
+      uint8_t b = curBright + (uint8_t)((tgtBright - curBright) * e);
+      FastLED.setBrightness(b);
     } else {
       brightTrans = false;
-      curBrightF = tgtBrightF;
+      FastLED.setBrightness(tgtBright);
     }
   }
 
@@ -207,11 +210,9 @@ void loop() {
       if (el < TRANSITION_MS) {
         float t = (float)el / TRANSITION_MS;
         float e = smootherstep(t);
-        for (int i = 0; i < NUM_LEDS; i++) {
-          leds[i].r = (uint8_t)(startColor.r + (targetColor.r - startColor.r) * e + 0.5f);
-          leds[i].g = (uint8_t)(startColor.g + (targetColor.g - startColor.g) * e + 0.5f);
-          leds[i].b = (uint8_t)(startColor.b + (targetColor.b - startColor.b) * e + 0.5f);
-        }
+        uint8_t frac = (uint8_t)(e * 255.0f);
+        for (int i = 0; i < NUM_LEDS; i++)
+          leds[i] = CRGB::blend(startColor, targetColor, frac);
       } else {
         for (int i = 0; i < NUM_LEDS; i++) leds[i] = targetColor;
         if (currentMode == 2) {
@@ -223,12 +224,6 @@ void loop() {
         } else {
           rgbHoldStart = 0;
         }
-      }
-      float bScale = curBrightF / 255.0f;
-      for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i].r = (uint8_t)(leds[i].r * bScale + 0.5f);
-        leds[i].g = (uint8_t)(leds[i].g * bScale + 0.5f);
-        leds[i].b = (uint8_t)(leds[i].b * bScale + 0.5f);
       }
       FastLED.show();
     }
