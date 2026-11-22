@@ -10,16 +10,23 @@
 #define BRIGHT_TRANS_MS 2000
 #define FEEDBACK_MS 300
 #define BTN_IGNORE_MS 80
-#define UPDATE_MS 16  // 60 FPS
+#define UPDATE_MS 16
+
+// Modes: 0=blanc chaud, 1=blanc, 2=RGB random
+#define NUM_MODES 3
+const CRGB MODE_COLORS[2] = {
+  CRGB(255, 140, 40),  // 0: blanc chaud (plus chaud)
+  CRGB(255, 180, 80)   // 1: blanc
+};
 
 const uint8_t BRIGHT_LEVELS[3] = {20, 80, 225};
 int brightLevel = 1;
 
 CRGB leds[NUM_LEDS];
 bool lampOn = false;
-int currentMode = 1;
+int currentMode = 0;  // 0=blanc chaud, 1=blanc, 2=RGB
 CRGB startColor = CRGB::Black;
-CRGB targetColor = CRGB(255, 180, 80);
+CRGB targetColor = MODE_COLORS[0];
 uint32_t lastTransition = 0;
 
 uint8_t curBright = 40;
@@ -29,7 +36,7 @@ bool brightTrans = false;
 
 bool feedbackActive = false;
 uint32_t feedbackStart = 0;
-int feedbackMode = 1;
+int feedbackMode = 0;
 CRGB feedbackTarget = CRGB::Black;
 CRGB savedColor = CRGB::Black;
 CRGB feedbackColor = CRGB(0, 0, 255);
@@ -40,8 +47,6 @@ bool waitSecond = false;
 uint32_t firstPress = 0;
 uint32_t ignoreUntil = 0;
 
-// Smootherstep (quintic) : derivee 1 ET 2 nulles aux extremes
-// = zero vitesse + zero acceleration au depart et a larrivée
 float smootherstep(float t) {
   return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
 }
@@ -49,7 +54,7 @@ float smootherstep(float t) {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  Serial.println("LAMPE-LED v9 (ultra smooth)");
+  Serial.println("LAMPE-LED v10 (3 modes)");
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
   FastLED.setBrightness(40);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -58,10 +63,22 @@ void setup() {
   Serial.println("Pret.");
 }
 
+void modeName(int m) {
+  if (m == 0) Serial.print("blanc chaud");
+  else if (m == 1) Serial.print("blanc");
+  else Serial.print("RGB");
+}
+
 void setTarget(CRGB c) {
   startColor = leds[0];
   targetColor = c;
   lastTransition = millis();
+}
+
+void getModeColor(int m, CRGB &c) {
+  if (m == 0) c = MODE_COLORS[0];
+  else if (m == 1) c = MODE_COLORS[1];
+  else c = CRGB(CHSV(random(256), 255, 255));
 }
 
 void changeIntensity() {
@@ -84,16 +101,16 @@ void changeMode() {
   feedbackActive = true;
   feedbackStart = millis();
   feedbackColor = CRGB(0, 0, 255);
-  feedbackMode = (currentMode == 1) ? 2 : 1;
-  if (feedbackMode == 1) feedbackTarget = CRGB(255, 180, 80);
-  else feedbackTarget = CRGB(CHSV(random(256), 255, 255));
+  feedbackMode = (currentMode + 1) % NUM_MODES;
+  getModeColor(feedbackMode, feedbackTarget);
 }
 
 void toggleLamp() {
   lampOn = !lampOn;
   if (lampOn) {
-    if (currentMode == 1) setTarget(CRGB(255, 180, 80));
-    else setTarget(CRGB(CHSV(random(256), 255, 255)));
+    CRGB c;
+    getModeColor(currentMode, c);
+    setTarget(c);
     Serial.println("Lampe ALLUMEE");
   } else {
     for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
@@ -152,13 +169,13 @@ void loop() {
         targetColor = feedbackTarget;
         lastTransition = millis();
         Serial.print("Mode: ");
-        Serial.println(currentMode==1?"blanc chaud":"couleurs random");
+        modeName(currentMode);
+        Serial.println();
       }
     }
     return;
   }
 
-  // Transition intensite (smootherstep, 2s)
   if (brightTrans) {
     uint32_t el = millis() - lastBrightT;
     if (el < BRIGHT_TRANS_MS) {
@@ -172,7 +189,6 @@ void loop() {
     }
   }
 
-  // Transition couleur (smootherstep, 60 FPS)
   static uint32_t lastUpd = 0;
   if (millis() - lastUpd >= UPDATE_MS) {
     lastUpd = millis();
