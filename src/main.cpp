@@ -20,7 +20,7 @@ const CRGB MODE_COLORS[2] = {
   CRGB(255, 230, 200)   // 1: blanc
 };
 
-const uint8_t BRIGHT_LEVELS[3] = {20, 80, 225};
+const uint8_t BRIGHT_LEVELS[3] = {40, 80, 255};
 int brightLevel = 1;
 
 CRGB leds[NUM_LEDS];
