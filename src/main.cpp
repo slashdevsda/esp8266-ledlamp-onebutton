@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <FastLED.h>
-#include <esp_sleep.h>
 
 #define DATA_PIN 14
 #define BUTTON_PIN 5
@@ -58,7 +57,6 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   Serial.println("LAMPE-LED v10 (3 modes)");
-  WiFi.mode(WIFI_OFF);
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
   FastLED.setBrightness(40);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -129,17 +127,11 @@ void toggleLamp() {
   } else {
     for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
     FastLED.show();
-    brightTrans = false;
     Serial.println("Lampe ETEINTEE");
   }
 }
 
 void loop() {
-  if (!lampOn && !brightTrans && !feedbackActive) {
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, 0);
-    esp_light_sleep();
-  }
-
   bool btn = (digitalRead(BUTTON_PIN) == LOW);
   if (millis() < ignoreUntil) {
     btnWas = btn;
