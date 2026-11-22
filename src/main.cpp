@@ -15,8 +15,8 @@
 // Modes: 0=blanc chaud, 1=blanc, 2=RGB random
 #define NUM_MODES 3
 const CRGB MODE_COLORS[2] = {
-  CRGB(255, 140, 40),  // 0: blanc chaud (plus chaud)
-  CRGB(255, 180, 80)   // 1: blanc
+  CRGB(255, 110, 20),  // 0: blanc chaud (plus chaud)
+  CRGB(255, 230, 200)   // 1: blanc
 };
 
 const uint8_t BRIGHT_LEVELS[3] = {20, 80, 225};
