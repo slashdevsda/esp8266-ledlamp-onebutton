@@ -51,9 +51,9 @@ Active-low : appui = LOW.
 
 | Niveau | Valeur (0-255) |
 |---|---|
-| Faible | 20 |
+| Faible | 40 |
 | Moyen | 80 |
-| Max | 225 |
+| Max | 255 |
 
 ### Feedback visuel (LED 0)
 
@@ -120,7 +120,7 @@ s.close()
 | Config | Consommation |
 |---|---|
 | 11 LEDs full white + ESP | ~810mA @ 5V |
-| 11 LEDs au max (225/255) | ~710mA @ 5V |
+| 11 LEDs au max (255/255) | ~810mA @ 5V |
 | Chargeur 5V/1A | ~14 LEDs max (full) |
 | Chargeur 5V/2A | ~30 LEDs max (full) |
 
