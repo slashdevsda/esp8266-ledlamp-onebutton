@@ -1,90 +1,97 @@
-# Lampe LED — ESP8266 (WeMos D1 Mini)
+# LED Lamp — ESP8266 (WeMos D1 Mini)
 
-Lampe d'ambiance à 11 LEDs WS2812B adressables, contrôlée par un bouton physique.
-Firmware embarqué, aucune dépendance réseau (pas de Wi-Fi utilisé).
+Ambient lamp with 11 addressable WS2812B LEDs, controlled by a single physical button.
+Self-contained firmware, no network dependency (Wi-Fi unused).
 
-## Matériel
+> **Disclaimer**
+> This project was written entirely by an AI agent (Hermes Agent, by Nous Research)
+> during an interactive session with the owner. The code has **not been reviewed by
+> any human**. It worked as intended on the author's setup, but use it at your own
+> risk — no warranty of any kind, and no liability for bricked boards, burnt strips
+> or other mishaps. Read the code before flashing it.
 
-| Composant | Détail |
+## Hardware
+
+| Component | Detail |
 |---|---|
 | MCU | WeMos D1 Mini (ESP8266, CH340 USB-serial) |
-| LEDs | 11× WS2812B (3 fils, 5V) |
-| Bouton | Tactile 2 pins, momentary NO |
-| Alimentation LEDs | Chargeur 5V séparé (USB-C femelle) |
-| Alimentation MCU | USB (sert aussi au flash) |
+| LEDs | 11× WS2812B (3-wire, 5V) |
+| Button | 2-pin tactile switch, momentary NO |
+| LED power | Separate 5V charger (USB-C female connector) |
+| MCU power | USB (also used for flashing) |
 
-### Câblage
+### Wiring
 
 | LED strip | Source |
 |---|---|
-| 5V (VCC) | Chargeur 5V séparé |
-| GND | GND (masse commune obligatoire) |
+| 5V (VCC) | Separate 5V supply |
+| GND | GND (common ground mandatory) |
 | DIN | D5 (GPIO14) via 330Ω |
 
-| Bouton | Source |
+| Button | Source |
 |---|---|
 | Pin 1 | D1 (GPIO5) |
 | Pin 2 | GND |
 
-Pull-up interne activé (`INPUT_PULLUP`) — pas de résistance externe.
-Active-low : appui = LOW.
+Internal pull-up enabled (`INPUT_PULLUP`) — no external resistor needed.
+Active-low: pressed = LOW.
 
 ## Features
 
-### Modes d'éclairage (cycle au double-appui)
+### Lighting modes (cycled by double-press)
 
-| # | Mode | Couleur |
+| # | Mode | Color |
 |---|---|---|
-| 0 | Blanc chaud | (255, 110, 20) — ambre/orangé |
-| 1 | Blanc | (255, 230, 200) — neutre/froid |
-| 2 | RGB random | Couleur HSV saturée aléatoire, nouvelle couleur toutes les 10s |
+| 0 | Warm white | (255, 110, 20) — amber/orange |
+| 1 | White | (255, 230, 200) — neutral/cool |
+| 2 | Random RGB | Random saturated HSV color, new color every 10s |
 
-### Contrôles (bouton)
+### Controls (button)
 
 | Gesture | Action |
 |---|---|
-| Appui long (>500ms) | ON / OFF |
-| 1 appui court | Cycle intensité : faible → moyen → max |
-| 2 appuis courts (<400ms d'écart) | Cycle mode : blanc chaud → blanc → RGB |
+| Long press (>500ms) | ON / OFF |
+| 1 short press | Cycle intensity: low → medium → max |
+| 2 short presses (<400ms apart) | Cycle mode: warm white → white → RGB |
 
-### Niveaux d'intensité
+### Intensity levels
 
-| Niveau | Valeur (0-255) |
+| Level | Value (0-255) |
 |---|---|
-| Faible | 40 |
-| Moyen | 80 |
+| Low | 40 |
+| Medium | 80 |
 | Max | 255 |
 
-### Feedback visuel (LED 0)
+### Visual feedback (LED 0)
 
-| Événement | Couleur | Durée |
+| Event | Color | Duration |
 |---|---|---|
-| Changement d'intensité | Rouge (full power) | 300ms |
-| Changement de mode | Bleu (full power) | 300ms |
+| Intensity change | Red (full power) | 300ms |
+| Mode change | Blue (full power) | 300ms |
 
-Les autres LEDs restent allumées pendant le feedback (compensation de luminosité).
+The other LEDs stay lit during feedback (brightness compensation).
 
 ### Transitions
 
-| Type | Durée | Easing |
+| Type | Duration | Easing |
 |---|---|---|
-| Changement de mode (couleur) | 5s | Smootherstep quintic, 60 FPS |
-| Changement d'intensité | 2s | Smootherstep quintic |
-| Démarrage (ON) | 2s | Fade-in luminosité 0 → niveau actuel |
-| RGB : hold entre couleurs | 10s | — |
+| Mode change (color) | 5s | Quintic smootherstep, 60 FPS |
+| Intensity change | 2s | Quintic smootherstep |
+| Startup (ON) | 2s | Brightness fade-in 0 → current level |
+| RGB: hold between colors | 10s | — |
 
-**Smootherstep quintic** : `t³(t(t·6−15)+10)` — vitesse ET accélération nulles aux deux extrémités → transition perçue comme fluide.
+**Quintic smootherstep**: `t³(t(t·6−15)+10)` — zero velocity AND zero acceleration at both endpoints → perceived as fluid.
 
-Le blend couleur est fait en **float** (précision totale) pour éviter le jitter à basse luminosité.
+The color blend is done in **float** (full precision) to avoid jitter at low brightness.
 
-### Anti-bounce
+### Debounce
 
-Fenêtre d'ignore de 80ms après chaque relâchement du bouton (le bounce mécanique fait 5-20ms).
+80ms ignore window after each button release (mechanical bounce lasts 5-20ms).
 
 ## Build & Flash
 
 ```bash
-# Prérequis: PlatformIO dans un venv
+# Prerequisite: PlatformIO in a venv
 python3 -m venv ~/.platformio-venv
 ~/.platformio-venv/bin/pip install platformio
 
@@ -94,7 +101,7 @@ python3 -m venv ~/.platformio-venv
 # Flash (port /dev/ttyUSB0)
 ~/.platformio-venv/bin/pio run -t upload
 
-# Monitor serial (115200 baud)
+# Serial monitor (115200 baud)
 ~/.platformio-venv/bin/python -c "
 import serial, time
 s = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
@@ -106,23 +113,25 @@ s.close()
 "
 ```
 
-### Config PlatformIO (`platformio.ini`)
+### PlatformIO config (`platformio.ini`)
 
 - Board: `d1_mini`
 - Framework: `arduino`
 - Lib: `fastled/FastLED@^3.10.1`
 - Port: `/dev/ttyUSB0`
 
-> **Note** : FastLED 3.6.0 crash sur ce board. Toujours utiliser ≥3.10.1.
+> **Note**: FastLED 3.6.0 crashes on this board. Always use ≥3.10.1.
 
-## Budget puissance
+## Power budget
 
-| Config | Consommation |
+| Config | Draw |
 |---|---|
 | 11 LEDs full white + ESP | ~810mA @ 5V |
-| 11 LEDs au max (255/255) | ~810mA @ 5V |
-| Chargeur 5V/1A | ~14 LEDs max (full) |
-| Chargeur 5V/2A | ~30 LEDs max (full) |
+| 11 LEDs at max (255/255) | ~810mA @ 5V |
+| 5V/1A charger | ~14 LEDs max (full) |
+| 5V/2A charger | ~30 LEDs max (full) |
+
+Idle (lamp off, no Wi-Fi): ~0.4-0.6W, roughly 1.30€/year at 24/7.
 
 ## Structure
 
@@ -130,7 +139,7 @@ s.close()
 lampe-led/
 ├── platformio.ini
 ├── src/
-│   └── main.cpp      # Firmware complet
+│   └── main.cpp      # Complete firmware
 ├── include/
 ├── lib/
 └── test/
