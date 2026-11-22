@@ -110,7 +110,16 @@ void toggleLamp() {
   if (lampOn) {
     CRGB c;
     getModeColor(currentMode, c);
-    setTarget(c);
+    for (int i = 0; i < NUM_LEDS; i++) leds[i] = c;
+    targetColor = c;
+    startColor = c;
+    lastTransition = millis() + TRANSITION_MS;
+    curBright = 0;
+    tgtBright = BRIGHT_LEVELS[brightLevel];
+    lastBrightT = millis();
+    brightTrans = true;
+    FastLED.setBrightness(0);
+    FastLED.show();
     Serial.println("Lampe ALLUMEE");
   } else {
     for (int i = 0; i < NUM_LEDS; i++) leds[i] = CRGB::Black;
