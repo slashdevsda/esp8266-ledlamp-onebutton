@@ -174,7 +174,20 @@ void loop() {
       FastLED.show();
     } else {
       feedbackActive = false;
-      FastLED.setBrightness(tgtBright);
+      if (brightTrans) {
+        lastBrightT += FEEDBACK_MS;
+        uint32_t el2 = millis() - lastBrightT;
+        if (el2 < BRIGHT_TRANS_MS) {
+          float t2 = (float)el2 / BRIGHT_TRANS_MS;
+          float e2 = smootherstep(t2);
+          FastLED.setBrightness(curBright + (uint8_t)((tgtBright - curBright) * e2));
+        } else {
+          brightTrans = false;
+          FastLED.setBrightness(tgtBright);
+        }
+      } else {
+        FastLED.setBrightness(tgtBright);
+      }
       if (feedbackColor == CRGB(0, 0, 255)) {
         currentMode = feedbackMode;
         rgbHoldStart = 0;
