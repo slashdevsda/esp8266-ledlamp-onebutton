@@ -11,6 +11,7 @@
 #define FEEDBACK_MS 300
 #define BTN_IGNORE_MS 80
 #define UPDATE_MS 16
+#define RGB_HOLD_MS 10000
 
 // Modes: 0=blanc chaud, 1=blanc, 2=RGB random
 #define NUM_MODES 3
@@ -46,6 +47,7 @@ uint32_t btnTime = 0;
 bool waitSecond = false;
 uint32_t firstPress = 0;
 uint32_t ignoreUntil = 0;
+uint32_t rgbHoldStart = 0;
 
 float smootherstep(float t) {
   return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
@@ -118,6 +120,7 @@ void toggleLamp() {
     tgtBright = BRIGHT_LEVELS[brightLevel];
     lastBrightT = millis();
     brightTrans = true;
+    rgbHoldStart = 0;
     FastLED.setBrightness(0);
     FastLED.show();
     Serial.println("Lampe ALLUMEE");
@@ -174,6 +177,7 @@ void loop() {
       FastLED.setBrightness(tgtBright);
       if (feedbackColor == CRGB(0, 0, 255)) {
         currentMode = feedbackMode;
+        rgbHoldStart = 0;
         startColor = savedColor;
         targetColor = feedbackTarget;
         lastTransition = millis();
@@ -211,8 +215,15 @@ void loop() {
           leds[i] = CRGB::blend(startColor, targetColor, frac);
       } else {
         for (int i = 0; i < NUM_LEDS; i++) leds[i] = targetColor;
-        if (currentMode == 2)
-          setTarget(CRGB(CHSV(random(256), 255, 255)));
+        if (currentMode == 2) {
+          if (rgbHoldStart == 0) rgbHoldStart = millis();
+          else if (millis() - rgbHoldStart >= RGB_HOLD_MS) {
+            rgbHoldStart = 0;
+            setTarget(CRGB(CHSV(random(256), 255, 255)));
+          }
+        } else {
+          rgbHoldStart = 0;
+        }
       }
       FastLED.show();
     }
