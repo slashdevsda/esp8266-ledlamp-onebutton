@@ -210,9 +210,11 @@ void loop() {
       if (el < TRANSITION_MS) {
         float t = (float)el / TRANSITION_MS;
         float e = smootherstep(t);
-        uint8_t frac = (uint8_t)(e * 255.0f);
-        for (int i = 0; i < NUM_LEDS; i++)
-          leds[i] = CRGB::blend(startColor, targetColor, frac);
+        for (int i = 0; i < NUM_LEDS; i++) {
+          leds[i].r = (uint8_t)(startColor.r + (targetColor.r - startColor.r) * e + 0.5f);
+          leds[i].g = (uint8_t)(startColor.g + (targetColor.g - startColor.g) * e + 0.5f);
+          leds[i].b = (uint8_t)(startColor.b + (targetColor.b - startColor.b) * e + 0.5f);
+        }
       } else {
         for (int i = 0; i < NUM_LEDS; i++) leds[i] = targetColor;
         if (currentMode == 2) {
